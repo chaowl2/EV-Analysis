@@ -1,0 +1,108 @@
+---
+title: "R Maps"
+author: "Kobe Sarausad"
+date: "2/7/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(maps)
+library(plotly)
+
+# Load maps data
+WA_Counties <- map_data("county") %>% 
+  filter(region == "washington")
+
+# Load full data
+data <- read.csv("Electric_Vehicle_Population_Data_20240207.csv")
+```
+
+## Create a map: Basics
+
+```{r}
+WA_Counties %>% 
+  ggplot() +
+  geom_polygon(aes(x = long, y = lat, group = group)) +
+  theme(
+    legend.position = "none"
+  )
+```
+
+Add a border by adding `color = "gray80"` to `geom_polygon`:
+
+```{r}
+WA_Counties %>% 
+  ggplot() +
+  geom_polygon(aes(x = long, y = lat, group = group), color = "gray80") +
+  theme(
+    legend.position = "none"
+  )
+```
+
+Color each county by adding `fill = subregion` to `geom_polygon`:
+
+```{r}
+WA_Counties %>% 
+  ggplot() +
+  geom_polygon(aes(x = long, y = lat, group = group, fill = subregion), color = "gray80") +
+  theme(
+    legend.position = "none"
+  )
+```
+
+Then, remove the background to a have a simple map,
+
+```{r}
+WA_Counties %>% 
+  ggplot() +
+  geom_polygon(aes(x = long, y = lat, group = group, fill = subregion), color = "gray80") +
+  theme_void() +
+  theme(
+    legend.position = "none"
+  )
+```
+
+## Create a map: Adding Data
+
+Create an aggreagted form of data, by county. For this case, we want to get the most common make of EV by county.
+
+```{r}
+county_agg <- data %>% 
+  group_by(County, Make) %>% 
+  summarize(n = n()) %>% 
+  mutate(County = str_to_lower(County)) %>% 
+  group_by(County) %>% 
+  top_n(1)
+```
+
+Now, join the dataframe to the map dataframe:
+
+```{r}
+data_joined <- WA_Counties %>% 
+  left_join(county_agg, by = c("subregion" = "County"))
+```
+
+We can follow the same steps to plot it:
+
+```{r}
+data_joined %>% 
+  ggplot() +
+  geom_polygon(aes(x = long, y = lat, group = group, fill = Make), color = "gray90") +
+  theme_void()
+```
+
+Quite expected result here, with Tesla being the most popular make in most counties.
+
+## Create a map: Convert To Plotly
+
+Need to first assign the map to a varaible, and then pass that variable into the function `ggplotly`.
+
+```{r}
+p <- data_joined %>% 
+  ggplot() +
+  geom_polygon(aes(x = long, y = lat, group = group, fill = Make), color = "gray90") +
+  theme_void()
+ggplotly(p)
+```
+
